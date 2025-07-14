@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Half Marathon Training Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Harmony -->
+    <!-- Application Structure Plan: A single-page dashboard design was chosen for its directness and ease of use. The core content, the 20-week training plan, is organized into four distinct, tabbed phases. This structure prevents information overload by breaking the lengthy schedule into logical, manageable segments, mirroring the natural progression of training. Key metrics and a race-day countdown are placed prominently at the top for motivation and immediate context. The page includes a data visualization section with charts to provide at-a-glance insights into training load and variety, which is more intuitive than interpreting raw numbers in a table. Finally, an interactive glossary clarifies workout terminology, making the plan accessible even to less experienced runners. This user flow—from overview, to phased details, to visual analysis—creates a comprehensive and user-friendly training companion. -->
+    <!-- Visualization & Content Choices: 
+        Report Info: 20-week training table. -> Goal: Organize & Inform. -> Viz/Presentation: Interactive, tabbed weekly cards with mileage tracking inputs for every day. -> Interaction: Click tabs to switch phases; enter daily mileage to save and automatically update weekly totals and the main chart. -> Justification: Provides a granular, day-by-day tracking experience, offering immediate feedback by summing daily entries into a weekly total. Allows for logging runs on any day, offering maximum flexibility. -> Library/Method: HTML/CSS/JS with localStorage.
+        Report Info: Weekly mileage data (planned vs. actual). -> Goal: Show change and compare. -> Viz/Presentation: Dual-series Bar Chart. -> Interaction: Hover to see exact mileage for any week. Actual data is now a dynamic sum of daily inputs. -> Justification: Visually represents the principle of progressive overload and allows for direct comparison of planned vs. actual effort, calculated from detailed user input. -> Library/Method: Chart.js.
+        Report Info: Types of workouts (Easy, Tempo, etc.). -> Goal: Compare Proportions. -> Viz/Presentation: Donut Chart. -> Interaction: Hover to see the count of each workout type. -> Justification: Gives a high-level summary of the training plan's focus and variety. -> Library/Method: Chart.js.
+        Report Info: Workout descriptions. -> Goal: Inform. -> Viz/Presentation: Interactive Key section. -> Interaction: Click a workout type to see its description. -> Justification: More engaging and space-efficient than a static list of text. -> Library/Method: HTML/CSS/JS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F7F4;
+            color: #4A4A4A;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+                max-height: 400px;
+            }
+        }
+        .tab-active {
+            border-color: #4A6C6F;
+            background-color: #4A6C6F;
+            color: #FFFFFF;
+        }
+        .key-active {
+            background-color: #EAE8E1;
+            transform: translateY(-2px);
+        }
+        .practice-race {
+            background: linear-gradient(45deg, #F9EBEA, #FDF2E9);
+            border: 2px solid #E6B0AA;
+        }
+        .race-day {
+            background: linear-gradient(45deg, #4A6C6F, #6E8B8C);
+            color: white;
+        }
+        .variance-plus { color: #2E7D32; }
+        .variance-minus { color: #C62828; }
+        .daily-input {
+            width: 60px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #D1D5DB;
+            text-align: center;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-[#3B5759] mb-2">Half Marathon Training Plan</h1>
+            <p class="text-xl text-gray-600">Your Journey to a Sub-1:55 Finish at the BMW Dallas Half Marathon</p>
+            <div id="countdown" class="mt-6 p-4 bg-white/60 rounded-xl shadow-md inline-block">
+                <p class="text-lg font-semibold text-[#3B5759]">Race Day: December 14, 2025</p>
+                <div id="timer" class="text-2xl md:text-3xl font-bold text-[#4A6C6F] mt-2 tabular-nums"></div>
+            </div>
+        </header>
+
+        <main>
+            <section id="training-plan" class="mb-16">
+                <h2 class="text-3xl font-bold text-center mb-2 text-[#3B5759]">Your 20-Week Schedule</h2>
+                <p class="text-center text-gray-600 mb-8 max-w-3xl mx-auto">This plan is divided into four phases. Click on a phase to see the weekly schedule. Enter your actual mileage for each day to track your progress.</p>
+
+                <div class="mb-8 flex flex-wrap justify-center gap-2 md:gap-4">
+                    <button data-phase="phase1" class="phase-tab px-4 py-2 font-semibold border-2 border-transparent rounded-full transition-all duration-300 tab-active">Phase 1: Base Building</button>
+                    <button data-phase="phase2" class="phase-tab px-4 py-2 font-semibold border-2 border-transparent rounded-full transition-all duration-300">Phase 2: Strength & Speed</button>
+                    <button data-phase="phase3" class="phase-tab px-4 py-2 font-semibold border-2 border-transparent rounded-full transition-all duration-300">Phase 3: Peak Weeks</button>
+                    <button data-phase="phase4" class="phase-tab px-4 py-2 font-semibold border-2 border-transparent rounded-full transition-all duration-300">Phase 4: Taper & Race</button>
+                </div>
+                
+                <div id="plan-content"></div>
+            </section>
+            
+            <section id="visualizations" class="mb-16">
+                <h2 class="text-3xl font-bold text-center mb-2 text-[#3B5759]">Training Visualized</h2>
+                <p class="text-center text-gray-600 mb-8 max-w-3xl mx-auto">These charts provide a visual overview of your training plan, helping you see the progression in mileage and the variety in your workouts.</p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                    <div class="lg:col-span-3 bg-white/60 p-4 sm:p-6 rounded-2xl shadow-lg">
+                        <h3 class="text-xl font-bold text-center mb-4 text-[#3B5759]">Weekly Mileage Progression</h3>
+                        <div class="chart-container">
+                            <canvas id="mileageChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2 bg-white/60 p-4 sm:p-6 rounded-2xl shadow-lg">
+                        <h3 class="text-xl font-bold text-center mb-4 text-[#3B5759]">Workout Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="workoutChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="workout-key" class="mb-16">
+                 <h2 class="text-3xl font-bold text-center mb-2 text-[#3B5759]">Workout Key</h2>
+                 <p class="text-center text-gray-600 mb-8 max-w-3xl mx-auto">Click on any workout type to understand its purpose and how it helps you reach your goal.</p>
+                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
+                    <div data-key="easy" class="key-item p-4 bg-white/60 rounded-xl shadow-md cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                        <span class="text-2xl">🏃‍♂️</span>
+                        <p class="font-bold mt-2">Easy Run</p>
+                    </div>
+                     <div data-key="long" class="key-item p-4 bg-white/60 rounded-xl shadow-md cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                        <span class="text-2xl">🏞️</span>
+                        <p class="font-bold mt-2">Long Run</p>
+                    </div>
+                     <div data-key="tempo" class="key-item p-4 bg-white/60 rounded-xl shadow-md cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                        <span class="text-2xl">⚡️</span>
+                        <p class="font-bold mt-2">Tempo Run</p>
+                    </div>
+                     <div data-key="intervals" class="key-item p-4 bg-white/60 rounded-xl shadow-md cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                        <span class="text-2xl">💨</span>
+                        <p class="font-bold mt-2">Intervals</p>
+                    </div>
+                     <div data-key="xt" class="key-item p-4 bg-white/60 rounded-xl shadow-md cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                        <span class="text-2xl">🚴‍♀️</span>
+                        <p class="font-bold mt-2">Cross-Train</p>
+                    </div>
+                     <div data-key="rest" class="key-item p-4 bg-white/60 rounded-xl shadow-md cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                        <span class="text-2xl">😴</span>
+                        <p class="font-bold mt-2">Rest Day</p>
+                    </div>
+                </div>
+                <div id="key-description" class="mt-6 p-6 bg-white rounded-2xl shadow-lg min-h-[100px] transition-all duration-300">
+                    <p class="text-center text-gray-500">Select a workout type above to see its description.</p>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center border-t border-gray-300 pt-8 mt-8">
+             <h3 class="text-xl font-bold mb-4 text-[#3B5759]">Important Notes for Success</h3>
+             <div class="text-left max-w-3xl mx-auto space-y-2 text-gray-600">
+                <p><strong>Listen to Your Body:</strong> This plan is a guide. If you feel pain (not just discomfort), take an extra rest day. It's better to be slightly undertrained than injured.</p>
+                <p><strong>Flexibility is Key:</strong> Feel free to move days around to fit your schedule, but try to keep your long run on the weekend and avoid doing hard workouts on back-to-back days.</p>
+                <p><strong>Hydration & Nutrition:</strong> Use your long runs to practice your race-day hydration and nutrition strategy. Find out what works for you well before the event.</p>
+             </div>
+        </footer>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    let mileageChartInstance = null;
+    let actualMileageData = {};
+
+    const trainingData = [
+        { phase: 1, week: 1, mileage: 7, schedule: { mon: "Rest", tue: "2 mi Easy", wed: "XT or Rest", thu: "2 mi Easy", fri: "Rest", sat: "Rest", sun: "3 mi Long Run" }},
+        { phase: 1, week: 2, mileage: 8.5, schedule: { mon: "Rest", tue: "2 mi Easy", wed: "XT or Rest", thu: "2.5 mi Easy", fri: "Rest", sat: "Rest", sun: "4 mi Long Run" }},
+        { phase: 1, week: 3, mileage: 12, schedule: { mon: "Rest", tue: "2.5 mi Easy", wed: "Tempo: 1mi WU, 1mi @8:45, 1mi CD", thu: "2.5 mi Easy", fri: "Rest", sat: "Rest", sun: "5 mi Long Run" }},
+        { phase: 1, week: 4, mileage: 12, schedule: { mon: "Rest", tue: "3 mi Easy", wed: "XT or Rest", thu: "3 mi Easy", fri: "Rest", sat: "Rest", sun: "6 mi Long Run" }},
+        { phase: 1, week: 5, mileage: 16, schedule: { mon: "Rest", tue: "3 mi Easy", wed: "Tempo: 1mi WU, 2mi @8:45, 1mi CD", thu: "3 mi Easy", fri: "Rest", sat: "Rest", sun: "7 mi Long Run" }},
+        { phase: 1, week: 6, mileage: 10, schedule: { mon: "Rest", tue: "3 mi Easy", wed: "XT or Rest", thu: "2 mi Easy", fri: "Rest", sat: "Rest", sun: "5 mi Long Run (Step-back)" }},
+        { phase: 2, week: 7, mileage: 18, schedule: { mon: "Rest", tue: "3.5 mi Easy", wed: "Intervals: 4x400m", thu: "3.5 mi Easy", fri: "Rest", sat: "Rest", sun: "8 mi Long Run" }},
+        { phase: 2, week: 8, mileage: 20.5, schedule: { mon: "Rest", tue: "4 mi Easy", wed: "Tempo: 1mi WU, 2.5mi @8:40, 1mi CD", thu: "4 mi Easy", fri: "Rest", sat: "Rest", sun: "9 mi Long Run" }},
+        { phase: 2, week: 9, mileage: 18.25, schedule: { mon: "Rest", tue: "4 mi Easy", wed: "Intervals: 5x400m", thu: "4 mi Easy", fri: "Rest", sat: "Rest", sun: "7 mi Long Run (Step-back)" }},
+        { phase: 2, week: 10, mileage: 22, schedule: { mon: "Rest", tue: "4 mi Easy", wed: "Tempo: 1mi WU, 3mi @8:40, 1mi CD", thu: "4 mi Easy", fri: "Rest", sat: "Rest", sun: "10 mi Long Run" }},
+        { phase: 2, week: 11, mileage: 24.5, schedule: { mon: "Rest", tue: "4.5 mi Easy", wed: "Intervals: 6x400m", thu: "4.5 mi Easy", fri: "Rest", sat: "Rest", sun: "11 mi Long Run" }},
+        { phase: 2, week: 12, mileage: 15, schedule: { mon: "Rest", tue: "4 mi Easy", wed: "XT or Rest", thu: "3 mi Easy", fri: "Rest", sat: "Rest", sun: "8 mi Long Run (Step-back)" }},
+        { phase: 3, week: 13, mileage: 25.5, schedule: { mon: "Rest", tue: "5 mi Easy", wed: "Tempo: 1mi WU, 3.5mi @8:35, 1mi CD", thu: "5 mi Easy", fri: "Rest", sat: "Rest", sun: "12 mi Long Run" }},
+        { phase: 3, week: 14, mileage: 26, schedule: { mon: "Rest", tue: "5 mi Easy", wed: "Intervals: 8x400m", thu: "5 mi Easy", fri: "Rest", sat: "Rest", sun: "10 mi Long Run" }},
+        { phase: 3, week: 15, mileage: 28.1, schedule: { mon: "Rest", tue: "5 mi Easy", wed: "Tempo: 1mi WU, 4mi @8:35, 1mi CD", thu: "5 mi Easy", fri: "Rest", sat: "Rest", sun: "13.1 mi Long Run (Practice Race)" }},
+        { phase: 3, week: 16, mileage: 19, schedule: { mon: "Rest", tue: "5 mi Easy", wed: "XT or Rest", thu: "4 mi Easy", fri: "Rest", sat: "Rest", sun: "10 mi Long Run (Step-back)" }},
+        { phase: 3, week: 17, mileage: 25, schedule: { mon: "Rest", tue: "5 mi Easy", wed: "Tempo: 1mi WU, 3mi @8:30, 1mi CD", thu: "5 mi Easy", fri: "Rest", sat: "Rest", sun: "12 mi Long Run" }},
+        { phase: 3, week: 18, mileage: 18, schedule: { mon: "Rest", tue: "4 mi Easy", wed: "Intervals: 4x400m", thu: "4 mi Easy", fri: "Rest", sat: "Rest", sun: "8 mi Long Run" }},
+        { phase: 4, week: 19, mileage: 16, schedule: { mon: "Rest", tue: "4 mi Easy", wed: "Tempo: 1mi WU, 2mi @8:45, 1mi CD", thu: "3 mi Easy", fri: "Rest", sat: "Rest", sun: "6 mi Long Run" }},
+        { phase: 4, week: 20, mileage: 20, schedule: { mon: "Rest", tue: "3 mi Easy", wed: "2 mi Easy w/ 4x100m strides", thu: "Rest", fri: "Rest", sat: "Rest", sun: "RACE DAY!" }}
+    ];
+
+    const workoutDescriptions = {
+        easy: { title: "Easy Run", description: "Run at a comfortable, conversational pace. You should be able to speak in full sentences. This builds your aerobic base and helps with recovery." },
+        long: { title: "Long Run", description: "The cornerstone of half marathon training. Run at an easy, steady pace to build endurance and mental toughness. Focus on time on your feet, not speed." },
+        tempo: { title: "Tempo Run", description: "A sustained run at a 'comfortably hard' pace. After a warm-up, run at a pace where you can only speak a few words at a time. This improves your lactate threshold, which is crucial for racing faster for longer." },
+        intervals: { title: "Intervals", description: "After a warm-up, run short, hard efforts (e.g., 400m) followed by an equal recovery period of easy jogging or walking. This workout boosts your speed and running efficiency." },
+        xt: { title: "Cross-Training", description: "30-45 minutes of non-running aerobic activity like cycling, swimming, or using an elliptical. This helps build fitness without the impact of running, reducing injury risk." },
+        rest: { title: "Rest Day", description: "Arguably the most important day. Rest is critical for muscle repair, recovery, and injury prevention. Don't skip these days!" }
+    };
+    
+    function loadDataFromStorage() {
+        const savedMileage = localStorage.getItem('actualDailyMileage');
+        if (savedMileage) {
+            actualMileageData = JSON.parse(savedMileage);
+        }
+    }
+
+    function startCountdown() {
+        const raceDate = new Date("2025-12-14T08:00:00").getTime();
+        const timerEl = document.getElementById('timer');
+        if(!timerEl) return;
+        const interval = setInterval(() => {
+            const now = new Date().getTime();
+            const distance = raceDate - now;
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            if (distance < 0) {
+                timerEl.innerHTML = "Race Day has passed!";
+                clearInterval(interval);
+            } else {
+                 timerEl.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+            }
+        }, 1000);
+    }
+
+    function calculateWeeklyTotals() {
+        return trainingData.map(week => {
+            if (!actualMileageData[week.week]) return null;
+            return Object.values(actualMileageData[week.week]).reduce((sum, miles) => sum + (miles || 0), 0);
+        });
+    }
+
+    function createMileageChart() {
+        const ctx = document.getElementById('mileageChart')?.getContext('2d');
+        if (!ctx) return;
+        
+        mileageChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: trainingData.map(w => `Wk ${w.week}`),
+                datasets: [
+                {
+                    label: 'Planned Mileage',
+                    data: trainingData.map(w => w.mileage),
+                    backgroundColor: '#4A6C6F',
+                    borderColor: '#3B5759',
+                    borderWidth: 2,
+                    borderRadius: 5,
+                },
+                {
+                    label: 'Actual Mileage',
+                    data: calculateWeeklyTotals(),
+                    backgroundColor: '#F2A488',
+                    borderColor: '#D96C4E',
+                    borderWidth: 2,
+                    borderRadius: 5,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        backgroundColor: '#333',
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 12 },
+                        padding: 10,
+                        cornerRadius: 4
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Miles' } },
+                    x: { title: { display: true, text: 'Training Week' } }
+                }
+            }
+        });
+    }
+
+    function createWorkoutChart() {
+        const ctx = document.getElementById('workoutChart')?.getContext('2d');
+        if (!ctx) return;
+        const workoutCounts = { Easy: 0, Long: 0, Tempo: 0, Intervals: 0, XT: 0, Rest: 0 };
+        trainingData.forEach(week => {
+            Object.values(week.schedule).forEach(activity => {
+                if (activity.includes('Easy')) workoutCounts.Easy++;
+                else if (activity.includes('Long')) workoutCounts.Long++;
+                else if (activity.includes('Tempo')) workoutCounts.Tempo++;
+                else if (activity.includes('Intervals')) workoutCounts.Intervals++;
+                else if (activity.includes('XT')) workoutCounts.XT++;
+                else if (activity.includes('Rest')) workoutCounts.Rest++;
+            });
+        });
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(workoutCounts),
+                datasets: [{
+                    label: 'Workout Types',
+                    data: Object.values(workoutCounts),
+                    backgroundColor: ['#6E8B8C', '#3B5759', '#F2A488', '#D96C4E', '#EAE8E1', '#BDB9AD'],
+                    borderColor: '#F8F7F4',
+                    borderWidth: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                     tooltip: {
+                        backgroundColor: '#333',
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 12 },
+                        padding: 10,
+                        cornerRadius: 4
+                    }
+                }
+            }
+        });
+    }
+    
+    function renderPlan(phase = 1) {
+        const contentEl = document.getElementById('plan-content');
+        if(!contentEl) return;
+        const phases = {
+            phase1: { data: trainingData.filter(w => w.phase === 1), title: 'Phase 1: Base Building (Weeks 1-6)'},
+            phase2: { data: trainingData.filter(w => w.phase === 2), title: 'Phase 2: Strength & Speed (Weeks 7-12)'},
+            phase3: { data: trainingData.filter(w => w.phase === 3), title: 'Phase 3: Peak Weeks (Weeks 13-18)'},
+            phase4: { data: trainingData.filter(w => w.phase === 4), title: 'Phase 4: Taper & Race (Weeks 19-20)'}
+        };
+        let html = '';
+        for (const phaseKey in phases) {
+            const phaseData = phases[phaseKey];
+            html += `<div id="${phaseKey}" class="phase-content ${phaseKey === `phase${phase}` ? '' : 'hidden'}">`;
+            html += `<h3 class="text-2xl font-bold text-center mb-6 text-[#3B5759]">${phaseData.title}</h3>`;
+            html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">`;
+            phaseData.data.forEach(week => {
+                let cardClass = 'bg-white/80 rounded-2xl p-6 shadow-lg flex flex-col';
+                if (week.schedule.sun.includes('Practice Race')) cardClass += ' practice-race';
+                if (week.schedule.sun.includes('RACE DAY')) cardClass += ' race-day';
+                html += `
+                    <div class="${cardClass}">
+                        <div class="flex justify-between items-baseline mb-4">
+                            <h4 class="text-xl font-bold">Week ${week.week}</h4>
+                            <p class="font-semibold text-sm opacity-80">Plan: ${week.mileage} miles</p>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2 text-sm flex-grow">
+                            ${Object.entries(week.schedule).map(([day, activity]) => {
+                                const dailyValue = actualMileageData[week.week]?.[day] || '';
+                                return `
+                                <div class="grid grid-cols-3 gap-2 border-b border-gray-200/50 py-2 items-center">
+                                    <span class="font-semibold capitalize col-span-1">${day}</span>
+                                    <span class="text-gray-600 col-span-1">${activity}</span>
+                                    ${!activity.includes('RACE DAY') ? `
+                                    <div class="col-span-1 text-right">
+                                        <input type="number" step="0.1" class="daily-input" data-week="${week.week}" data-day="${day}" value="${dailyValue}" placeholder="mi">
+                                    </div>
+                                    ` : '<div class="col-span-1"></div>'}
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-200/50 text-sm font-semibold flex justify-between">
+                            <span>Actual Total: <span id="actual-total-${week.week}">0.0</span> mi</span>
+                            <span id="variance-${week.week}" class="text-right"></span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div></div>`;
+        }
+        contentEl.innerHTML = html;
+        addInputListeners();
+    }
+
+    function addInputListeners() {
+        document.querySelectorAll('.daily-input').forEach(input => {
+            input.addEventListener('change', handleDailyMileageUpdate);
+        });
+        trainingData.forEach(week => updateWeekSummary(week.week));
+    }
+
+    function handleDailyMileageUpdate(event) {
+        const week = event.target.dataset.week;
+        const day = event.target.dataset.day;
+        const value = event.target.value;
+        if (!actualMileageData[week]) {
+            actualMileageData[week] = {};
+        }
+        if (value === '' || isNaN(parseFloat(value))) {
+            delete actualMileageData[week][day];
+        } else {
+            actualMileageData[week][day] = parseFloat(value);
+        }
+        localStorage.setItem('actualDailyMileage', JSON.stringify(actualMileageData));
+        updateWeekSummary(week);
+        updateChart();
+    }
+
+    function updateWeekSummary(week) {
+        const totalEl = document.getElementById(`actual-total-${week}`);
+        const varianceEl = document.getElementById(`variance-${week}`);
+        if (!totalEl || !varianceEl) return;
+        const weeklyData = actualMileageData[week] || {};
+        const actualTotal = Object.values(weeklyData).reduce((sum, miles) => sum + (miles || 0), 0);
+        totalEl.textContent = actualTotal.toFixed(1);
+        const planned = trainingData.find(w => w.week == week).mileage;
+        const diff = actualTotal - planned;
+        if (actualTotal > 0) {
+            varianceEl.textContent = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)} mi`;
+            varianceEl.className = `text-right ${diff >= 0 ? 'variance-plus' : 'variance-minus'}`;
+        } else {
+            varianceEl.textContent = '';
+        }
+    }
+
+    function updateChart() {
+        if (!mileageChartInstance) return;
+        mileageChartInstance.data.datasets[1].data = calculateWeeklyTotals();
+        mileageChartInstance.update();
+    }
+    
+    function setupTabs() {
+        const tabs = document.querySelectorAll('.phase-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('tab-active'));
+                tab.classList.add('tab-active');
+                const phaseId = tab.dataset.phase;
+                document.querySelectorAll('.phase-content').forEach(content => {
+                    content.classList.add('hidden');
+                });
+                document.getElementById(phaseId).classList.remove('hidden');
+            });
+        });
+    }
+
+    function setupKey() {
+        const keys = document.querySelectorAll('.key-item');
+        const descriptionEl = document.getElementById('key-description');
+        keys.forEach(key => {
+            key.addEventListener('click', () => {
+                keys.forEach(k => k.classList.remove('key-active'));
+                key.classList.add('key-active');
+                const keyId = key.dataset.key;
+                const content = workoutDescriptions[keyId];
+                if (content) {
+                    descriptionEl.innerHTML = `
+                        <h4 class="text-xl font-bold mb-2 text-[#3B5759]">${content.title}</h4>
+                        <p class="text-gray-600">${content.description}</p>
+                    `;
+                }
+            });
+        });
+    }
+
+    loadDataFromStorage();
+    renderPlan(1);
+    startCountdown();
+    createMileageChart();
+    createWorkoutChart();
+    setupTabs();
+    setupKey();
+});
+</script>
+</body>
+</html>
